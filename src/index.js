@@ -6,44 +6,45 @@ import './css/styles.css';
 
 function getWeather(searchValue) {
   let requestWeather = new XMLHttpRequest();
-  let requestAirPollution = new XMLHttpRequest();
   let url;
   const isZipCode = /^\d+$/.test(searchValue);
 
-  let airPollution;
   if (isZipCode) {
     url = `http://api.openweathermap.org/data/2.5/weather?zip=${searchValue}&appid=${process.env.API_KEY}`;
-    airPollution = `http://api.openweathermap.org/data/2.5/air_pollution?zip=${searchValue}&appid=${process.env.API_KEY}`;
   } else {
     url = `http://api.openweathermap.org/data/2.5/weather?q=${searchValue}&appid=${process.env.API_KEY}`;
-    airPollution = `http://api.openweathermap.org/data/2.5/air_pollution?q=${searchValue}&appid=${process.env.API_KEY}`;
   }
-
-  
 
   requestWeather.addEventListener("loadend", function() {
     const response = JSON.parse(this.responseText);
     console.log(response);
     if (this.status === 200) {
-      requestAirPollution.open("GET", airPollution, true);
-      requestAirPollution.send();
-      printElements(response, searchValue);
+      const lat = response.coord.lat;
+      const lon = response.coord.lon
+      getAirPollution(lat, lon);
+      printElements(response, searchValue, lat, lon);
     } else {
       printError(this, response, searchValue);
     }
   });
 
-  requestAirPollution.addEventListener("loadend", function() {
-    const airPollutionResponse = JSON.parse(this.responseText);
-    if (this.status === 200) {
-        printAirPollution(airPollutionResponse, searchValue);
-      } else {
-        printError(airPollutionResponse);
-    }
-  });
-
   requestWeather.open("GET", url, true);
   requestWeather.send();
+}
+
+function getAirPollution(lat, lon) {
+  const requestAirPollution = new XMLHttpRequest();
+  const airPollutionUrl = `http://api.openweathermap.org/data/2.5/air_pollution?lat=${lat}&lon=${lon}&appid=${process.env.API_KEY}`
+  requestAirPollution.addEventListener("loadend", function () {
+    const airPollutionResponse = JSON.parse(this.responseText);
+    if (this.status === 200) {
+      printAirPollution(airPollutionResponse);
+    } else {
+      printError(this, airPollutionResponse);
+    }
+  });
+  requestAirPollution.open("GET", airPollutionUrl, true);
+  requestAirPollution.send();
 }
 
 // UI Logic
@@ -52,7 +53,7 @@ function printError(request, apiResponse, searchValue) {
     document.querySelector('#showResponse').innerText = `There was an error accessing the weather data for ${searchValue}: ${request.status} ${request.statusText}: ${apiResponse.message}`;
   }
 
-function printElements(apiResponse, searchValue) {
+function printElements(apiResponse, searchValue, lat, lon) {
   const fahrenheitTemp = Math.round(100 * ((apiResponse.main.temp - 273.15) * 1.8 + 32) / 100);
   const minTemp = Math.round(100 * ((apiResponse.main.temp_min - 273.15) * 1.8 + 32) / 100);
   const maxTemp = Math.round(100 * ((apiResponse.main.temp_max - 273.15) * 1.8 + 32) / 100);
@@ -65,12 +66,12 @@ function printElements(apiResponse, searchValue) {
   The weather 'feels' like ${feelsLikeTemp} degrees Fahrenheit.
   The current weather is ${apiResponse.weather[0].description}.
   The wind speed is ${apiResponse.wind.speed} mph.`
+  getAirPollution(lat, lon);
 }
 
-function printAirPollution(apiResponse, searchValue) {
-    const airQualityIndex = apiResponse.main.aqi;
-    document.querySelector('#showResponse2').innerText =
-    `The air quality index in ${searchValue} is ${airQualityIndex} (Where 1 = Good, 2 = Fair, 3 = Moderate, 4 = Poor, 5 = Very Poor)`
+function printAirPollution(airPollutionResponse) {
+    const airQualityIndex = airPollutionResponse.list[0].main.aqi;
+    document.querySelector('#showResponse2').innerText = `The air quality index is ${airQualityIndex} (Where 1 = Good, 2 = Fair, 3 = Moderate, 4 = Poor, 5 = Very Poor)`;
 }
 
 function handleFormSubmission(event) {
