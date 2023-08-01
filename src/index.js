@@ -5,31 +5,39 @@ import './css/styles.css';
 // Business Logic
 
 function getWeather(searchValue) {
-  let requestWeather = new XMLHttpRequest();
-  let url;
-  const isZipCode = /^\d+$/.test(searchValue);
+  let promise = new Promise(function (resolve, reject) {
+    let requestWeather = new XMLHttpRequest();
+    let url;
+    const isZipCode = /^\d+$/.test(searchValue);
 
-  if (isZipCode) {
-    url = `http://api.openweathermap.org/data/2.5/weather?zip=${searchValue}&appid=${process.env.API_KEY}`;
-  } else {
-    url = `http://api.openweathermap.org/data/2.5/weather?q=${searchValue}&appid=${process.env.API_KEY}`;
-  }
-
-  requestWeather.addEventListener("loadend", function() {
-    const response = JSON.parse(this.responseText);
-    console.log(response);
-    if (this.status === 200) {
-      const lat = response.coord.lat;
-      const lon = response.coord.lon
-      getAirPollution(lat, lon);
-      printElements(response, searchValue, lat, lon);
+    if (isZipCode) {
+      url = `http://api.openweathermap.org/data/2.5/weather?zip=${searchValue}&appid=${process.env.API_KEY}`;
     } else {
-      printError(this, response, searchValue);
+      url = `http://api.openweathermap.org/data/2.5/weather?q=${searchValue}&appid=${process.env.API_KEY}`;
     }
+
+    requestWeather.addEventListener("loadend", function () {
+      const response = JSON.parse(this.responseText);
+      if (this.status === 200) {
+        resolve({response, searchValue});
+      } else {
+        reject([this, response, searchValue])
+      }
+    });
+    requestWeather.open("GET", url, true);
+    requestWeather.send();
   });
 
-  requestWeather.open("GET", url, true);
-  requestWeather.send();
+  promise.then(function (data) {
+    const response = data.response;
+    const searchValue = data.searchValue;
+    const lat = response.coord.lat;
+    const lon = response.coord.lon;
+    printElements(response, searchValue, lat, lon);
+    getAirPollution(lat, lon);
+  }, function (response) {
+    printError(this, response, searchValue);
+  });
 }
 
 function getAirPollution(lat, lon) {
@@ -50,14 +58,14 @@ function getAirPollution(lat, lon) {
 // UI Logic
 
 function printError(request, apiResponse, searchValue) {
-    document.querySelector('#showResponse').innerText = `There was an error accessing the weather data for ${searchValue}: ${request.status} ${request.statusText}: ${apiResponse.message}`;
-  }
+  document.querySelector('#showResponse').innerText = `There was an error accessing the weather data for ${searchValue}: ${request.status} ${request.statusText}: ${apiResponse.message}`;
+}
 
 function printElements(apiResponse, searchValue, lat, lon) {
   const fahrenheitTemp = Math.round(100 * ((apiResponse.main.temp - 273.15) * 1.8 + 32) / 100);
   const minTemp = Math.round(100 * ((apiResponse.main.temp_min - 273.15) * 1.8 + 32) / 100);
   const maxTemp = Math.round(100 * ((apiResponse.main.temp_max - 273.15) * 1.8 + 32) / 100);
-  const feelsLikeTemp = Math.round(100 * ((apiResponse.main.feels_like- 273.15) * 1.8 + 32) / 100);
+  const feelsLikeTemp = Math.round(100 * ((apiResponse.main.feels_like - 273.15) * 1.8 + 32) / 100);
   document.querySelector('#showResponse').innerText = `The humidity in ${searchValue} is ${apiResponse.main.humidity}%.
   The temperature in Kelvins is ${apiResponse.main.temp} degrees.
   The temperature in Fahrenheit is ${fahrenheitTemp} degrees.
@@ -70,8 +78,8 @@ function printElements(apiResponse, searchValue, lat, lon) {
 }
 
 function printAirPollution(airPollutionResponse) {
-    const airQualityIndex = airPollutionResponse.list[0].main.aqi;
-    document.querySelector('#showResponse2').innerText = `The air quality index is ${airQualityIndex} (Where 1 = Good, 2 = Fair, 3 = Moderate, 4 = Poor, 5 = Very Poor)`;
+  const airQualityIndex = airPollutionResponse.list[0].main.aqi;
+  document.querySelector('#showResponse2').innerText = `The air quality index is ${airQualityIndex} (Where 1 = Good, 2 = Fair, 3 = Moderate, 4 = Poor, 5 = Very Poor)`;
 }
 
 function handleFormSubmission(event) {
@@ -81,6 +89,6 @@ function handleFormSubmission(event) {
   getWeather(city);
 }
 
-window.addEventListener("load", function() {
+window.addEventListener("load", function () {
   document.querySelector('form').addEventListener("submit", handleFormSubmission);
 });
