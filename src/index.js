@@ -41,24 +41,33 @@ function getWeather(searchValue) {
 }
 
 function getAirPollution(lat, lon) {
-  const requestAirPollution = new XMLHttpRequest();
-  const airPollutionUrl = `http://api.openweathermap.org/data/2.5/air_pollution?lat=${lat}&lon=${lon}&appid=${process.env.API_KEY}`
-  requestAirPollution.addEventListener("loadend", function () {
-    const airPollutionResponse = JSON.parse(this.responseText);
-    if (this.status === 200) {
-      printAirPollution(airPollutionResponse);
-    } else {
-      printError(this, airPollutionResponse);
-    }
+  let promise = new Promise(function(resolve, reject) {
+    let requestAirPollution = new XMLHttpRequest();
+    const airPollutionUrl = `http://api.openweathermap.org/data/2.5/air_pollution?lat=${lat}&lon=${lon}&appid=${process.env.API_KEY}`
+    requestAirPollution.addEventListener("loadend", function () {
+      const airPollutionResponse = JSON.parse(this.responseText);
+      if (this.status === 200) {
+        resolve(airPollutionResponse);
+      } else {
+        reject ([this, airPollutionResponse])
+      }
+    });
+    requestAirPollution.open("GET", airPollutionUrl, true);
+    requestAirPollution.send();
   });
-  requestAirPollution.open("GET", airPollutionUrl, true);
-  requestAirPollution.send();
+  
+  promise.then(function (response){
+    printAirPollution(response);
+  }, function(response) {
+    printError(this, response);
+  });
 }
 
 // UI Logic
 
 function printError(request, apiResponse, searchValue) {
-  document.querySelector('#showResponse').innerText = `There was an error accessing the weather data for ${searchValue}: ${request.status} ${request.statusText}: ${apiResponse.message}`;
+  console.log(apiResponse[1])
+  document.querySelector('#showResponse').innerText = `There was an error accessing the weather data for ${searchValue}: ${apiResponse[1].cod} ${apiResponse.message}: ${apiResponse[1].message}`;
 }
 
 function printElements(apiResponse, searchValue, lat, lon) {
