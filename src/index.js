@@ -1,33 +1,12 @@
 import 'bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './css/styles.css';
+import WeatherService from './weather-service.js';
 
 // Business Logic
 
 function getWeather(searchValue) {
-  let promise = new Promise(function (resolve, reject) {
-    let requestWeather = new XMLHttpRequest();
-    let url;
-    const isZipCode = /^\d+$/.test(searchValue);
-
-    if (isZipCode) {
-      url = `http://api.openweathermap.org/data/2.5/weather?zip=${searchValue}&appid=${process.env.API_KEY}`;
-    } else {
-      url = `http://api.openweathermap.org/data/2.5/weather?q=${searchValue}&appid=${process.env.API_KEY}`;
-    }
-
-    requestWeather.addEventListener("loadend", function () {
-      const response = JSON.parse(this.responseText);
-      if (this.status === 200) {
-        resolve({response, searchValue});
-      } else {
-        reject([this, response, searchValue])
-      }
-    });
-    requestWeather.open("GET", url, true);
-    requestWeather.send();
-  });
-
+  let promise = WeatherService.getWeather(searchValue);
   promise.then(function (data) {
     const response = data.response;
     const searchValue = data.searchValue;
@@ -41,27 +20,14 @@ function getWeather(searchValue) {
 }
 
 function getAirPollution(lat, lon) {
-  let promise = new Promise(function(resolve, reject) {
-    let requestAirPollution = new XMLHttpRequest();
-    const airPollutionUrl = `http://api.openweathermap.org/data/2.5/air_pollution?lat=${lat}&lon=${lon}&appid=${process.env.API_KEY}`
-    requestAirPollution.addEventListener("loadend", function () {
-      const airPollutionResponse = JSON.parse(this.responseText);
-      if (this.status === 200) {
-        resolve(airPollutionResponse);
-      } else {
-        reject ([this, airPollutionResponse])
-      }
+  let promise = WeatherService.getAirPollution(lat, lon) 
+    promise.then(function(response) {
+      printAirPollution(response);
+    }, function(response) {
+      printError(response)
     });
-    requestAirPollution.open("GET", airPollutionUrl, true);
-    requestAirPollution.send();
-  });
-  
-  promise.then(function (response){
-    printAirPollution(response);
-  }, function(response) {
-    printError(this, response);
-  });
 }
+
 
 // UI Logic
 
